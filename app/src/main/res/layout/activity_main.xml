@@ -7,53 +7,122 @@
     android:layout_height="match_parent"
     android:paddingBottom="15dp"
     android:paddingTop="15dp"
+    android:background="@color/background"
     tools:context="com.cameradetect.MainActivity">
 
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true">
 
-        <RelativeLayout
-            android:id="@+id/form_layout"
+        <FrameLayout
+            android:id="@+id/touch_layout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content">
 
-            <ImageView
-                android:id="@+id/imageView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentLeft="true"
-                android:layout_alignParentStart="true"
-                android:layout_gravity="center_vertical|center_horizontal"
-                android:scaleType="centerInside"
-                android:layout_centerHorizontal="true"/>
-
-
-            <Button
-                android:id="@+id/process"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical|center_horizontal"
-                android:text="Process"
-                android:layout_marginTop="23dp"
-                android:layout_below="@+id/imageView"
-                android:layout_centerHorizontal="true" />
-
-            <EditText
-                android:id="@+id/result"
+            <RelativeLayout
+                android:id="@+id/form_layout"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@+id/process"
-                android:layout_centerHorizontal="true"
-                android:layout_gravity="center_vertical|center_horizontal"
-                android:layout_marginLeft="5dp"
-                android:layout_marginRight="5dp"
-                android:layout_marginTop="25dp"
-                android:textAlignment="center"
-                android:textColor="@android:color/background_dark"
-                android:textSize="18sp" />
+                android:layout_height="wrap_content">
 
-        </RelativeLayout>
+                <TextView
+                    android:id="@+id/message"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/imageView"
+                    android:layout_centerHorizontal="true"
+                    android:layout_marginTop="193dp"
+                    android:text="Select or capture an image"
+                    android:textColor="@android:color/background_dark"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/alpha"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true"
+                    android:layout_below="@+id/result"
+                    android:layout_gravity="center_vertical|center_horizontal"
+                    android:layout_marginTop="82dp"
+                    android:textAlignment="center"
+                    android:textColor="@android:color/background_dark"
+                    android:textSize="18sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/alpha_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignLeft="@+id/result_view"
+                    android:layout_alignStart="@+id/result_view"
+                    android:layout_below="@+id/result"
+                    android:layout_marginTop="37dp"
+                    android:text="Alphabets:"
+                    android:textColor="@android:color/background_dark"
+                    android:textSize="18sp"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/imageView"
+                    android:layout_width="fill_parent"
+                    android:layout_height="fill_parent"
+                    android:layout_alignParentLeft="false"
+                    android:layout_alignParentStart="false"
+                    android:layout_centerHorizontal="true"
+                    android:layout_gravity="center_vertical|center_horizontal"
+                    android:scaleType="centerInside"
+                    android:visibility="gone" />
+
+
+                <Button
+                    android:id="@+id/process"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/imageView"
+                    android:layout_centerHorizontal="true"
+                    android:layout_gravity="center_vertical|center_horizontal"
+                    android:layout_marginTop="23dp"
+                    android:bottomLeftRadius="10dp"
+                    android:bottomRightRadius="10dp"
+                    android:text="Process"
+                    android:topLeftRadius="10dp"
+                    android:topRightRadius="10dp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/result_view"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true"
+                    android:layout_below="@+id/process"
+                    android:layout_marginLeft="13dp"
+                    android:layout_marginStart="13dp"
+                    android:layout_marginTop="56dp"
+                    android:text="Numbers:"
+                    android:textColor="@android:color/background_dark"
+                    android:textSize="18sp"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/result"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentLeft="true"
+                    android:layout_alignParentStart="true"
+                    android:layout_below="@+id/result_view"
+                    android:layout_gravity="center_vertical|center_horizontal"
+                    android:layout_marginTop="16dp"
+                    android:textAlignment="center"
+                    android:textColor="@android:color/background_dark"
+                    android:textSize="18sp"
+                    android:visibility="gone" />
+
+            </RelativeLayout>
+        </FrameLayout>
 
     </ScrollView>
 
