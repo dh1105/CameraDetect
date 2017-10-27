@@ -1,6 +1,7 @@
 package com.cameradetect;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -14,6 +15,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
@@ -30,6 +32,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -39,29 +42,33 @@ import com.google.android.gms.vision.text.TextBlock;
 import com.google.android.gms.vision.text.TextRecognizer;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     ImageView imageView;
     Button process;
-    TextView result, alpha, alpha_view, result_view, message;
-    Bitmap bitmap, crop_bitmap;
+    TextView alpha_view, result_view, message;
+    EditText result, alpha;
+    Bitmap bitmap;
     View parentLayout;
+
     private int RESULT_LOAD_IMAGE = 2;
-    final int REQUEST_STORAGE_PERM = 1001;
-    final int REQUEST_WRITE_PERM = 2000;
-    final int REQUEST_CONTACTS = 4;
+    final int CAMERA_PIC_REQUEST = 1;
+    final int CROP_PIC = 6;
     final int CONTACT = 5;
+
     ProgressDialog p;
     Uri selectImage;
+    private String pictureImagePath = "";
 
     String num, alphabet;
     private static final String TAG = "MainActivity";
 
-    final int REQUEST_CAM_PERM = 1002;
-    final int CAMERA_PIC_REQUEST = 1;
-    final int CROP_PIC = 6;
+    private final int PERMISSIONS_ALL=1;
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     @Override
@@ -69,20 +76,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         parentLayout = findViewById(android.R.id.content);
-        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERM);
-        }
 
-        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAM_PERM);
-        }
+        String[] PERMISSIONS = {Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_CONTACTS,};
 
-        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_CONTACTS}, REQUEST_CONTACTS);
-        }
-
-        if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_WRITE_PERM);
+        if(!hasPermissions(this, PERMISSIONS)){
+            ActivityCompat.requestPermissions(this, PERMISSIONS, PERMISSIONS_ALL);
         }
 
         imageView = (ImageView) findViewById(R.id.imageView);
@@ -92,8 +90,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         process.setOnClickListener(this);
         process.setVisibility(View.GONE);
 
-        result = (TextView) findViewById(R.id.result);
-        alpha = (TextView) findViewById(R.id.alpha);
+        result = (EditText) findViewById(R.id.result);
+        alpha = (EditText) findViewById(R.id.alpha);
         alpha_view = (TextView) findViewById(R.id.alpha_view);
         result_view = (TextView) findViewById(R.id.result_view);
         message = (TextView) findViewById(R.id.message);
@@ -104,18 +102,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         this.invalidateOptionsMenu();
     }
 
+    public static boolean hasPermissions(Context context, String... permissions) {
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && context != null && permissions != null) {
+            for (String permission : permissions) {
+                if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
         this.invalidateOptionsMenu();
         if (requestCode == CAMERA_PIC_REQUEST) {
-            if (resultCode == RESULT_OK && data != null) {
+            if (resultCode == RESULT_OK) {
+                final BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inSampleSize = 2;
                 imageView.setVisibility(View.VISIBLE);
                 process.setVisibility(View.VISIBLE);
                 message.setVisibility(View.GONE);
-                Bundle b = data.getExtras();
+                /*Bundle b = data.getExtras();
                 bitmap = b.getParcelable("data");
-                imageView.setImageBitmap(bitmap);
-                selectImage = getImageUri(MainActivity.this, bitmap);
+                imageView.setImageBitmap(bitmap);*/
+                File imgFile = new File(pictureImagePath);
+                if (imgFile.exists()) {
+                    bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath(), options);
+                    imageView.setImageBitmap(bitmap);
+                    selectImage = getImageUri(MainActivity.this, bitmap);
+                }
                 //file_path = getRealPathFromURI(selectImage);
             }
         }
@@ -123,11 +139,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             imageView.setVisibility(View.VISIBLE);
             process.setVisibility(View.VISIBLE);
             message.setVisibility(View.GONE);
-            selectImage = data.getData();
-            Log.d("Image: ", selectImage.toString());
             String[] filePathColumn = {MediaStore.Images.Media.DATA};
             Log.d("File path: ", "Arr" + Arrays.toString(filePathColumn));
-            Cursor cursor = getContentResolver().query(selectImage, filePathColumn, null, null, null);
+            Cursor cursor = getContentResolver().query(data.getData(), filePathColumn, null, null, null);
             if (cursor != null) {
                 cursor.moveToFirst();
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
@@ -147,10 +161,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             imageView.setVisibility(View.VISIBLE);
             process.setVisibility(View.VISIBLE);
             message.setVisibility(View.GONE);
+            /*imageView.setMinimumHeight(crop_bitmap.getHeight());
+            imageView.setMinimumWidth(crop_bitmap.getWidth());*/
             Bundle b = data.getExtras();
-            crop_bitmap = b.getParcelable("data");
-            imageView.setImageBitmap(crop_bitmap);
-            selectImage = getImageUri(MainActivity.this, crop_bitmap);
+            bitmap = b.getParcelable("data");
+            if(bitmap!=null) {
+                imageView.setImageBitmap(bitmap);
+            }
+            selectImage = getImageUri(MainActivity.this, bitmap);
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
@@ -163,15 +181,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void cropImage() {
-
         try {
             Intent crop = new Intent("com.android.camera.action.CROP");
             crop.setDataAndType(selectImage, "image/*");
             crop.putExtra("crop", true);
-            /*crop.putExtra("outputX", 500);
-            crop.putExtra("outputY", 300);*/
-            crop.putExtra("aspectX", imageView.getHeight());
-            crop.putExtra("aspectY", imageView.getWidth());
+            crop.putExtra("outputX", 500);
+            crop.putExtra("outputY", 420);
+            /*crop.putExtra("aspectX", imageView.getHeight());
+            crop.putExtra("aspectY", imageView.getWidth());*/
+            /*crop.putExtra("scale", true);
+            crop.putExtra("scaleUpIfNeeded",true);*/
             crop.putExtra("return-data", true);
             startActivityForResult(crop, CROP_PIC);
         } catch (ActivityNotFoundException e) {
@@ -184,127 +203,61 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
-
-            case REQUEST_CAM_PERM:
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                        return;
-                    }
-                } else {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Unable to click a picture!");
-                        alertDialog.setMessage("Please allow the app to access your camera");
-                        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
-                                startActivity(in);
-                            }
-                        });
-                        return;
-                    }
+            case PERMISSIONS_ALL:
+                if(grantResults[0] != PackageManager.PERMISSION_GRANTED){
+                    AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                    alertDialog.setTitle("Unable to click a picture!");
+                    alertDialog.setMessage("Please allow the app to access your camera");
+                    alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+                            startActivity(in);
+                        }
+                    });
+                    return;
                 }
-                break;
-
-
-            case REQUEST_STORAGE_PERM:
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Unable to select a picture!");
-                        alertDialog.setMessage("Please allow the app to access your phone storage");
-                        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
-                                startActivity(in);
-                            }
-                        });
-                        return;
-                    }
-                } else {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Unable to click a picture!");
-                        alertDialog.setMessage("Please allow the app to access your camera");
-                        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
-                                startActivity(in);
-                            }
-                        });
-                        return;
-                    }
+                if(grantResults[1] != PackageManager.PERMISSION_GRANTED){
+                    AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                    alertDialog.setTitle("Unable to access storage");
+                    alertDialog.setMessage("Please allow the app to access your storage");
+                    alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+                            startActivity(in);
+                        }
+                    });
+                    return;
                 }
-                break;
-
-            case REQUEST_CONTACTS:
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Unable to access contacts");
-                        alertDialog.setMessage("Please allow the app to access your contacts");
-                        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
-                                startActivity(in);
-                            }
-                        });
-                        return;
-                    }
-                } else {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Unable to access contacts");
-                        alertDialog.setMessage("Please allow the app to access your contacts");
-                        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
-                                startActivity(in);
-                            }
-                        });
-                        return;
-                    }
+                if(grantResults[2] != PackageManager.PERMISSION_GRANTED){
+                    AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                    alertDialog.setTitle("Unable to access storage");
+                    alertDialog.setMessage("Please allow the app to access your storage");
+                    alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+                            startActivity(in);
+                        }
+                    });
+                    return;
                 }
-                break;
-
-            case REQUEST_WRITE_PERM:
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Unable to access storage");
-                        alertDialog.setMessage("Please allow the app to access your storage");
-                        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
-                                startActivity(in);
-                            }
-                        });
-                        return;
-                    }
-                } else {
-                    if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
-                        alertDialog.setTitle("Unable to access storage");
-                        alertDialog.setMessage("Please allow the app to access your storage");
-                        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
-                                startActivity(in);
-                            }
-                        });
-                        return;
-                    }
+                if(grantResults[3] != PackageManager.PERMISSION_GRANTED){
+                    AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                    alertDialog.setTitle("Unable to access contacts");
+                    alertDialog.setMessage("Please allow the app to access your contacts");
+                    alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            Intent in = new Intent(Settings.ACTION_APPLICATION_SETTINGS);
+                            startActivity(in);
+                        }
+                    });
+                    return;
                 }
-                break;
-
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
@@ -333,28 +286,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.upload_image:
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_STORAGE_PERM);
-                    return false;
-                }
-                Intent i = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                startActivityForResult(i, RESULT_LOAD_IMAGE);
+                startGal();
                 return true;
 
             case R.id.camera:
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAM_PERM);
-                    return false;
-                }
-                Intent camera_intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                startActivityForResult(camera_intent, CAMERA_PIC_REQUEST);
+                startCam();
                 return true;
 
             case R.id.contacts:
-                if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_CONTACTS}, REQUEST_CONTACTS);
-                    return false;
-                }
                 if (imageView.getDrawable() != null || !result.getText().toString().isEmpty() || !alpha.getText().toString().isEmpty()) {
                     Intent contact = new Intent(ContactsContract.Intents.Insert.ACTION);
                     contact.setType(ContactsContract.RawContacts.CONTENT_TYPE);
@@ -391,6 +330,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 removeImage();
                 return true;
 
+            case R.id.livescan:
+                liveScan();
+                return true;
+
         }
         return super.onOptionsItemSelected(item);
     }
@@ -404,6 +347,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void onClick(DialogInterface dialog, int which) {
                 if (imageView.getDrawable() != null) {
                     imageView.setImageDrawable(null);
+                    bitmap = null;
                     imageView.setVisibility(View.GONE);
                     alpha.setVisibility(View.GONE);
                     result.setVisibility(View.GONE);
@@ -433,18 +377,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (v.getId()) {
 
             case R.id.process:
-                result.setVisibility(View.VISIBLE);
-                alpha.setVisibility(View.VISIBLE);
-                alpha_view.setVisibility(View.VISIBLE);
-                result_view.setVisibility(View.VISIBLE);
                 if (imageView.getDrawable() == null) {
                     Snackbar.make(parentLayout, "No image selected!", Snackbar.LENGTH_LONG).show();
                 } else {
                     new Process().execute();
+                    result.setVisibility(View.VISIBLE);
+                    alpha.setVisibility(View.VISIBLE);
+                    alpha_view.setVisibility(View.VISIBLE);
+                    result_view.setVisibility(View.VISIBLE);
                 }
                 break;
 
         }
+    }
+
+    private void liveScan(){
+        Intent in = new Intent(this, LiveScan.class);
+        startActivity(in);
+    }
+
+    private void startGal(){
+        Intent i = new Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(i, RESULT_LOAD_IMAGE);
+    }
+
+    private void startCam(){
+        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = timeStamp + ".jpg";
+        File storageDir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES);
+        pictureImagePath = storageDir.getAbsolutePath() + "/" + imageFileName;
+        File file = new File(pictureImagePath);
+        Uri outputFileUri = Uri.fromFile(file);
+        Intent camera_intent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE);
+        camera_intent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
+        startActivityForResult(camera_intent, CAMERA_PIC_REQUEST);
     }
 
     private class Process extends AsyncTask<String, String, String> {
@@ -467,19 +434,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     Log.d(TAG, "Not working");
                 } else {
                     try {
-                        Frame frame = null;
-                        try {
-                            if (crop_bitmap == null) {
-                                frame = new Frame.Builder().setBitmap(bitmap).build();
-                                Log.d("Bitmap: ", bitmap.toString());
-                            } else {
-                                frame = new Frame.Builder().setBitmap(crop_bitmap).build();
-                                Log.d("Crop_bitmap", crop_bitmap.toString());
-                            }
-                        }
-                        catch(Exception e){
-                            e.printStackTrace();
-                        }
+                        Frame frame;
+                        frame = new Frame.Builder().setBitmap(bitmap).build();
+                        //Log.d("Bitmap: ", bitmap.toString());
                         SparseArray<TextBlock> items = textRecognizer.detect(frame);
                         StringBuilder stringBuilder = new StringBuilder();
                         for (int j = 0; j < items.size(); j++) {

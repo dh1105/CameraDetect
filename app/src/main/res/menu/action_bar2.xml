@@ -32,5 +32,10 @@
         android:title="Remove image"
         app:showAsAction="ifRoom" />
 
+    <item
+        android:id="@+id/livescan"
+        android:title="Live text scanning"
+        app:showAsAction="collapseActionView" />
+
 
 </menu>

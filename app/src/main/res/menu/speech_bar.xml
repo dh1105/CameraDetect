@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/speak"
+        android:icon="@android:drawable/ic_btn_speak_now"
+        android:title="Speak"
+        app:showAsAction="always" />
+
+</menu>
